@@ -5,195 +5,280 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 interface PreloaderProps {
   onLoadingComplete?: () => void
-  minimumDuration?: number
 }
 
-export default function Preloader({ 
-  onLoadingComplete, 
-  minimumDuration = 2000 
-}: PreloaderProps) {
-  const [progress, setProgress] = useState(0)
-  const [isComplete, setIsComplete] = useState(false)
-  const startTimeRef = useRef<number>(Date.now())
+export default function Preloader({ onLoadingComplete }: PreloaderProps) {
+  const [phase, setPhase] = useState<'intro' | 'reveal' | 'complete'>('intro')
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        const elapsed = Date.now() - startTimeRef.current
-        const targetProgress = Math.min((elapsed / minimumDuration) * 100, 100)
-        const newProgress = prev + (targetProgress - prev) * 0.1
-        
-        if (newProgress >= 99.5) {
-          clearInterval(interval)
-          return 100
-        }
-        
-        return newProgress
-      })
-    }, 16)
+    const timer1 = setTimeout(() => setPhase('reveal'), 800)
+    const timer2 = setTimeout(() => setPhase('complete'), 1800)
+    const timer3 = setTimeout(() => onLoadingComplete?.(), 2200)
 
-    return () => clearInterval(interval)
-  }, [minimumDuration])
-
-  useEffect(() => {
-    if (progress >= 100 && !isComplete) {
-      setTimeout(() => {
-        setIsComplete(true)
-        onLoadingComplete?.()
-      }, 300)
+    return () => {
+      clearTimeout(timer1)
+      clearTimeout(timer2)
+      clearTimeout(timer3)
     }
-  }, [progress, isComplete, onLoadingComplete])
+  }, [onLoadingComplete])
 
   return (
     <AnimatePresence>
-      {!isComplete && (
+      {phase !== 'complete' && (
         <motion.div
+          ref={containerRef}
           className="preloader"
           initial={{ opacity: 1 }}
-          exit={{ 
-            opacity: 0,
-            transition: { 
-              duration: 0.8, 
-              ease: [0.83, 0, 0.17, 1] 
-            }
-          }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.6, ease: [0.83, 0, 0.17, 1] }}
         >
-          <div className="preloader-content">
-            <motion.div
-              className="spirit-icon"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-            >
-              <svg
-                viewBox="0 0 100 100"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <motion.path
-                  d="M50 10 C30 20, 20 40, 25 60 C30 80, 45 90, 50 90 C55 90, 70 80, 75 60 C80 40, 70 20, 50 10"
-                  stroke="currentColor"
-                  strokeWidth="1"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: progress / 100 }}
-                  transition={{ duration: 0.1 }}
-                />
-                <motion.path
-                  d="M50 15 L50 5"
-                  stroke="currentColor"
-                  strokeWidth="1"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: progress / 100 }}
-                  transition={{ duration: 0.1 }}
-                />
-                <motion.path
-                  d="M45 8 L50 5 L55 8"
-                  stroke="currentColor"
-                  strokeWidth="1"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: progress / 100 }}
-                  transition={{ duration: 0.1 }}
-                />
-                <motion.path
-                  d="M40 25 Q35 35, 38 45"
-                  stroke="currentColor"
-                  strokeWidth="0.5"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: progress / 100 }}
-                  transition={{ duration: 0.1 }}
-                  opacity={0.5}
-                />
-                <motion.path
-                  d="M60 25 Q65 35, 62 45"
-                  stroke="currentColor"
-                  strokeWidth="0.5"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: progress / 100 }}
-                  transition={{ duration: 0.1 }}
-                  opacity={0.5}
-                />
-              </svg>
-            </motion.div>
-
-            <div className="loading-text">
-              <motion.span
+          <div className="preloader-inner">
+            {phase === 'intro' && (
+              <motion.div
+                className="logo-reveal"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.4, delay: 0.4 }}
+                transition={{ duration: 0.6 }}
               >
-                ROLLS-ROYCE
-              </motion.span>
-            </div>
+                <motion.div
+                  className="rr-monogram"
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <svg viewBox="0 0 100 100" className="monogram-svg">
+                    <motion.path
+                      d="M30 30 L30 70 L45 70 Q55 70 55 60 Q55 52 48 50 Q55 48 55 40 Q55 30 45 30 Z"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.6, ease: 'easeOut' }}
+                    />
+                    <motion.path
+                      d="M55 30 L55 70 L70 70 Q80 70 80 60 Q80 52 73 50 Q80 48 80 40 Q80 30 70 30 Z"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.6, ease: 'easeOut', delay: 0.1 }}
+                    />
+                    <motion.path
+                      d="M38 40 L45 40 Q48 40 48 45 Q48 50 45 50 L38 50"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.4, ease: 'easeOut', delay: 0.3 }}
+                    />
+                    <motion.path
+                      d="M63 40 L70 40 Q73 40 73 45 Q73 50 70 50 L63 50"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.4, ease: 'easeOut', delay: 0.35 }}
+                    />
+                    <motion.path
+                      d="M38 58 L47 58 Q52 58 52 63 Q52 68 47 68 L38 68"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.4, ease: 'easeOut', delay: 0.4 }}
+                    />
+                    <motion.path
+                      d="M63 58 L72 58 Q77 58 77 63 Q77 68 72 68 L63 68"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.4, ease: 'easeOut', delay: 0.45 }}
+                    />
+                  </svg>
+                </motion.div>
 
-            <div className="progress-bar">
+                <motion.div
+                  className="horizontal-line"
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ duration: 0.5, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                />
+              </motion.div>
+            )}
+
+            {phase === 'reveal' && (
               <motion.div
-                className="progress-fill"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+                className="brand-reveal"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4 }}
+              >
+                <motion.div
+                  className="brand-text"
+                  initial={{ y: 30, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <span className="brand-main">ROLLS-ROYCE</span>
+                </motion.div>
 
-            <div className="progress-text">
-              {Math.round(progress)}%
-            </div>
+                <motion.div
+                  className="model-text"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  SPECTRE
+                </motion.div>
+
+                <motion.div
+                  className="tagline"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                >
+                  Inspiring Greatness
+                </motion.div>
+              </motion.div>
+            )}
           </div>
+
+          <motion.div
+            className="curtain left"
+            initial={{ x: '-100%' }}
+            animate={{ x: phase === 'reveal' ? '0%' : '-100%' }}
+            transition={{ duration: 0.8, ease: [0.83, 0, 0.17, 1] }}
+          />
+          <motion.div
+            className="curtain right"
+            initial={{ x: '100%' }}
+            animate={{ x: phase === 'reveal' ? '0%' : '100%' }}
+            transition={{ duration: 0.8, ease: [0.83, 0, 0.17, 1] }}
+          />
 
           <style jsx>{`
             .preloader {
               position: fixed;
               inset: 0;
               z-index: 10000;
-              background: var(--color-primary-black);
+              background: #000;
               display: flex;
               align-items: center;
               justify-content: center;
+              overflow: hidden;
             }
 
-            .preloader-content {
+            .preloader-inner {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              z-index: 2;
+            }
+
+            .logo-reveal {
               display: flex;
               flex-direction: column;
               align-items: center;
               gap: 2rem;
             }
 
-            .spirit-icon {
-              width: 80px;
-              height: 80px;
-              color: var(--color-secondary-silver);
+            .rr-monogram {
+              width: 100px;
+              height: 100px;
+              color: var(--color-accent-gold);
             }
 
-            .spirit-icon svg {
+            .monogram-svg {
               width: 100%;
               height: 100%;
             }
 
-            .loading-text {
-              font-family: var(--font-subheading);
-              font-size: var(--font-size-small);
-              font-weight: 300;
-              letter-spacing: var(--letter-spacing-wide);
-              color: var(--color-secondary-silver);
-              text-transform: uppercase;
-            }
-
-            .progress-bar {
-              width: 200px;
+            .horizontal-line {
+              width: 120px;
               height: 1px;
-              background: hsla(0, 0%, 89%, 0.2);
-              position: relative;
-              overflow: hidden;
+              background: linear-gradient(90deg, transparent, var(--color-accent-gold), transparent);
+              transform-origin: center;
             }
 
-            .progress-fill {
-              height: 100%;
-              background: var(--color-secondary-silver);
-              transition: width 0.1s linear;
+            .brand-reveal {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 0.5rem;
             }
 
-            .progress-text {
-              font-family: var(--font-body);
-              font-size: var(--font-size-micro);
-              color: var(--color-text-secondary);
-              letter-spacing: 0.1em;
+            .brand-text {
+              display: flex;
+              align-items: center;
+              gap: 1rem;
+            }
+
+            .brand-main {
+              font-family: var(--font-heading);
+              font-size: clamp(1.5rem, 4vw, 2.5rem);
+              font-weight: 600;
+              color: #fff;
+              letter-spacing: 0.3em;
+            }
+
+            .model-text {
+              font-family: var(--font-heading);
+              font-size: clamp(3rem, 10vw, 6rem);
+              font-weight: 700;
+              color: transparent;
+              background: linear-gradient(180deg, #fff 0%, var(--color-accent-gold) 100%);
+              -webkit-background-clip: text;
+              background-clip: text;
+              letter-spacing: 0.2em;
+              line-height: 1;
+            }
+
+            .tagline {
+              font-family: var(--font-subheading);
+              font-size: 0.75rem;
+              font-weight: 300;
+              letter-spacing: 0.4em;
+              color: rgba(255, 255, 255, 0.4);
+              text-transform: uppercase;
+              margin-top: 1rem;
+            }
+
+            .curtain {
+              position: absolute;
+              top: 0;
+              bottom: 0;
+              width: 50%;
+              background: var(--color-accent-gold);
+              z-index: 1;
+            }
+
+            .curtain.left {
+              left: 0;
+              transform-origin: left;
+            }
+
+            .curtain.right {
+              right: 0;
+              transform-origin: right;
+            }
+
+            @media (max-width: 768px) {
+              .rr-monogram {
+                width: 80px;
+                height: 80px;
+              }
+
+              .brand-main {
+                letter-spacing: 0.2em;
+              }
             }
           `}</style>
         </motion.div>

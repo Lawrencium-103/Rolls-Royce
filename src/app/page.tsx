@@ -23,10 +23,7 @@ export default function Home() {
     <>
       {!isLoading && <CustomCursor />}
       
-      <Preloader 
-        onLoadingComplete={() => setIsLoading(false)} 
-        minimumDuration={2000}
-      />
+      <Preloader onLoadingComplete={() => setIsLoading(false)} />
       
       {!isLoading && (
         <LenisGSAP>

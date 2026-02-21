@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
@@ -13,46 +13,24 @@ export default function CinematicHero() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const imagesRef = useRef<Map<number, HTMLImageElement>>(new Map())
-  const [isLoading, setIsLoading] = useState(true)
-  const [loadProgress, setLoadProgress] = useState(0)
-  const mouseRef = useRef<{ x: number; y: number; targetX: number; targetY: number }>({ x: 0, y: 0, targetX: 0, targetY: 0 })
+  const mouseRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0 })
   const rafRef = useRef<number | null>(null)
+  const currentFrameRef = useRef(0)
 
   useEffect(() => {
-    const loadImages = async () => {
-      const batchSize = 24
-      let loaded = 0
-
-      for (let i = 0; i < TOTAL_FRAMES; i += batchSize) {
-        const batch: Promise<void>[] = []
-        
-        for (let j = i; j < Math.min(i + batchSize, TOTAL_FRAMES); j++) {
-          batch.push(
-            new Promise((resolve) => {
-              const img = new Image()
-              img.src = `/assets/hero/${String(j + 1).padStart(5, '0')}.png`
-              img.onload = () => {
-                imagesRef.current.set(j, img)
-                loaded++
-                setLoadProgress(Math.round((loaded / TOTAL_FRAMES) * 100))
-                resolve()
-              }
-              img.onerror = () => resolve()
-            })
-          )
-        }
-        
-        await Promise.all(batch)
+    const loadImages = () => {
+      for (let i = 0; i < TOTAL_FRAMES; i++) {
+        const img = new Image()
+        img.src = `/assets/hero/${String(i + 1).padStart(5, '0')}.png`
+        img.onload = () => imagesRef.current.set(i, img)
       }
-
-      setIsLoading(false)
     }
 
     loadImages()
   }, [])
 
   useEffect(() => {
-    if (isLoading || !sectionRef.current || !canvasRef.current) return
+    if (!sectionRef.current || !canvasRef.current) return
 
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')!
@@ -66,9 +44,15 @@ export default function CinematicHero() {
       canvas.height = img.height
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       ctx.drawImage(img, 0, 0)
+      currentFrameRef.current = index
     }
 
-    renderFrame(0)
+    const interval = setInterval(() => {
+      if (imagesRef.current.has(0) && currentFrameRef.current === 0) {
+        renderFrame(0)
+        clearInterval(interval)
+      }
+    }, 100)
 
     const scrollTrigger = ScrollTrigger.create({
       trigger: section,
@@ -80,9 +64,9 @@ export default function CinematicHero() {
           Math.floor(self.progress * (TOTAL_FRAMES - 1)),
           TOTAL_FRAMES - 1
         )
-        renderFrame(frameIndex)
-        
-
+        if (imagesRef.current.has(frameIndex)) {
+          renderFrame(frameIndex)
+        }
       },
     })
 
@@ -96,7 +80,7 @@ export default function CinematicHero() {
           duration: 1.5,
           stagger: 0.1,
           ease: 'power3.out',
-          delay: 0.5,
+          delay: 0.3,
         }
       )
 
@@ -108,7 +92,7 @@ export default function CinematicHero() {
           opacity: 1,
           duration: 1,
           ease: 'power2.out',
-          delay: 1.2,
+          delay: 0.8,
         }
       )
 
@@ -120,7 +104,7 @@ export default function CinematicHero() {
           opacity: 1,
           duration: 1,
           ease: 'power2.out',
-          delay: 1.5,
+          delay: 1,
         }
       )
 
@@ -133,7 +117,7 @@ export default function CinematicHero() {
           duration: 0.8,
           stagger: 0.15,
           ease: 'power2.out',
-          delay: 1.8,
+          delay: 1.2,
         }
       )
 
@@ -158,15 +142,6 @@ export default function CinematicHero() {
         },
       })
     }, section)
-
-    return () => {
-      scrollTrigger.kill()
-      ctxGsap.revert()
-    }
-  }, [isLoading])
-
-  useEffect(() => {
-    if (isLoading) return
 
     const handleMouseMove = (e: MouseEvent) => {
       const { clientX, clientY } = e
@@ -205,33 +180,20 @@ export default function CinematicHero() {
     rafRef.current = requestAnimationFrame(animateMouse)
 
     return () => {
+      clearInterval(interval)
+      scrollTrigger.kill()
+      ctxGsap.revert()
       window.removeEventListener('mousemove', handleMouseMove)
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
-  }, [isLoading])
+  }, [])
 
   return (
-    <section
-      ref={sectionRef}
-      className="cinematic-hero"
-    >
-      {isLoading && (
-        <div className="hero-loader">
-          <div className="loader-content">
-            <div className="loader-logo">RR</div>
-            <div className="loader-bar">
-              <div className="loader-fill" style={{ width: `${loadProgress}%` }} />
-            </div>
-            <span className="loader-text">{loadProgress}%</span>
-          </div>
-        </div>
-      )}
-
+    <section ref={sectionRef} className="cinematic-hero">
       <div className="hero-canvas-container">
         <canvas ref={canvasRef} className="hero-canvas canvas-parallax" />
         <div className="hero-vignette" />
         <div className="hero-gradient-overlay" />
-        <div className="hero-scanlines" />
       </div>
 
       <div ref={contentRef} className="hero-content">
@@ -286,62 +248,12 @@ export default function CinematicHero() {
         <span>Scroll</span>
       </div>
 
-      <div className="hero-corner-frame top-left" />
-      <div className="hero-corner-frame top-right" />
-      <div className="hero-corner-frame bottom-left" />
-      <div className="hero-corner-frame bottom-right" />
-
       <style jsx>{`
         .cinematic-hero {
           position: relative;
           height: 200vh;
           background: #000;
           overflow: hidden;
-        }
-
-        .hero-loader {
-          position: fixed;
-          inset: 0;
-          z-index: 1000;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #000;
-        }
-
-        .loader-content {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 2rem;
-        }
-
-        .loader-logo {
-          font-family: var(--font-heading);
-          font-size: 3rem;
-          font-weight: 600;
-          color: var(--color-secondary-silver);
-          letter-spacing: 0.3em;
-        }
-
-        .loader-bar {
-          width: 200px;
-          height: 1px;
-          background: rgba(255, 255, 255, 0.1);
-          overflow: hidden;
-        }
-
-        .loader-fill {
-          height: 100%;
-          background: linear-gradient(90deg, var(--color-accent-gold), #fff);
-          transition: width 0.2s ease;
-        }
-
-        .loader-text {
-          font-family: var(--font-subheading);
-          font-size: 0.75rem;
-          letter-spacing: 0.3em;
-          color: rgba(255, 255, 255, 0.5);
         }
 
         .hero-canvas-container {
@@ -377,20 +289,6 @@ export default function CinematicHero() {
             rgba(0, 0, 0, 0.9) 100%
           );
           pointer-events: none;
-        }
-
-        .hero-scanlines {
-          position: absolute;
-          inset: 0;
-          background: repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(0, 0, 0, 0.03) 2px,
-            rgba(0, 0, 0, 0.03) 4px
-          );
-          pointer-events: none;
-          opacity: 0.5;
         }
 
         .hero-content {
@@ -610,65 +508,6 @@ export default function CinematicHero() {
           text-transform: uppercase;
         }
 
-        .hero-frame-counter {
-          position: fixed;
-          bottom: 3rem;
-          right: 3rem;
-          display: flex;
-          align-items: baseline;
-          gap: 0.25rem;
-          font-family: var(--font-subheading);
-          font-size: 0.75rem;
-          color: rgba(255, 255, 255, 0.3);
-          z-index: 10;
-          will-change: transform;
-        }
-
-        .frame-current {
-          font-size: 1.5rem;
-          color: var(--color-accent-gold);
-        }
-
-        .frame-divider {
-          opacity: 0.3;
-        }
-
-        .hero-corner-frame {
-          position: fixed;
-          width: 80px;
-          height: 80px;
-          z-index: 10;
-          pointer-events: none;
-        }
-
-        .hero-corner-frame.top-left {
-          top: 2rem;
-          left: 2rem;
-          border-top: 1px solid rgba(255, 255, 255, 0.2);
-          border-left: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .hero-corner-frame.top-right {
-          top: 2rem;
-          right: 2rem;
-          border-top: 1px solid rgba(255, 255, 255, 0.2);
-          border-right: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .hero-corner-frame.bottom-left {
-          bottom: 2rem;
-          left: 2rem;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-          border-left: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .hero-corner-frame.bottom-right {
-          bottom: 2rem;
-          right: 2rem;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-          border-right: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
         @media (max-width: 768px) {
           .hero-stats {
             flex-direction: column;
@@ -689,15 +528,6 @@ export default function CinematicHero() {
           .cta-secondary {
             padding: 1rem 2rem;
             font-size: 0.75rem;
-          }
-
-          .hero-frame-counter {
-            right: 1rem;
-            bottom: 1rem;
-          }
-
-          .hero-corner-frame {
-            display: none;
           }
         }
       `}</style>
