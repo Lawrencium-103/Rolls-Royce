@@ -1,0 +1,29 @@
+{
+  "name": "luxury-spectre",
+  "version": "1.0.0",
+  "description": "Rolls-Royce Spectre Cinematic Experience",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "keywords": ["luxury", "rolls-royce", "spectre", "cinematic"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@studio-freight/lenis": "^1.0.42",
+    "framer-motion": "^12.34.3",
+    "gsap": "^3.14.2",
+    "lenis": "^1.3.17",
+    "next": "^16.1.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}
