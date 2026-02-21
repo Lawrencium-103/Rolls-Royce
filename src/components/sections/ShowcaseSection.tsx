@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
@@ -11,49 +11,71 @@ const TOTAL_FRAMES = 192
 export default function ShowcaseSection() {
   const sectionRef = useRef<HTMLElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [currentFrame, setCurrentFrame] = useState(0)
   const imagesRef = useRef<Map<number, HTMLImageElement>>(new Map())
-  const mouseRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0 })
-  const rafRef = useRef<number | null>(null)
+  const currentFrameRef = useRef(0)
+  const isRenderedRef = useRef(false)
 
   const getFramePath = useCallback((index: number) => {
     return `/assets/sequences/${String(index + 1).padStart(5, '0')}.png`
   }, [])
 
   useEffect(() => {
-    for (let i = 0; i < TOTAL_FRAMES; i++) {
-      const img = new Image()
-      img.src = getFramePath(i)
-      img.onload = () => imagesRef.current.set(i, img)
+    const loadImages = async () => {
+      const loadBatch = async (start: number, end: number) => {
+        const promises: Promise<void>[] = []
+        for (let i = start; i < end && i < TOTAL_FRAMES; i++) {
+          promises.push(
+            new Promise((resolve) => {
+              const img = new Image()
+              img.src = getFramePath(i)
+              img.onload = () => {
+                imagesRef.current.set(i, img)
+                resolve()
+              }
+              img.onerror = () => resolve()
+            })
+          )
+        }
+        await Promise.all(promises)
+      }
+
+      await loadBatch(0, 24)
+      
+      if (imagesRef.current.has(0) && canvasRef.current && !isRenderedRef.current) {
+        renderFrame(0)
+        isRenderedRef.current = true
+      }
+
+      loadBatch(24, TOTAL_FRAMES)
     }
+
+    loadImages()
   }, [getFramePath])
 
-  useEffect(() => {
-    if (!sectionRef.current || !canvasRef.current) return
+  const renderFrame = useCallback((frameIndex: number) => {
+    if (!canvasRef.current) return
 
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const renderFrame = (frameIndex: number) => {
-      const img = imagesRef.current.get(frameIndex)
-      if (!img) return
+    const img = imagesRef.current.get(frameIndex)
+    if (!img) return
 
-      canvas.width = img.width
-      canvas.height = img.height
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      ctx.drawImage(img, 0, 0)
-    }
+    canvas.width = img.width
+    canvas.height = img.height
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(img, 0, 0)
+    currentFrameRef.current = frameIndex
+  }, [])
 
-    const interval = setInterval(() => {
-      if (imagesRef.current.has(0)) {
-        renderFrame(0)
-        clearInterval(interval)
-      }
-    }, 100)
+  useEffect(() => {
+    if (!sectionRef.current || !canvasRef.current) return
 
-    const ctxGsap = gsap.context(() => {
-      ScrollTrigger.create({
+    let scrollTrigger: ScrollTrigger
+
+    const ctx = gsap.context(() => {
+      scrollTrigger = ScrollTrigger.create({
         trigger: sectionRef.current,
         start: 'top top',
         end: 'bottom bottom',
@@ -63,8 +85,7 @@ export default function ShowcaseSection() {
             Math.floor(self.progress * (TOTAL_FRAMES - 1)),
             TOTAL_FRAMES - 1
           )
-          if (frameIndex !== currentFrame) {
-            setCurrentFrame(frameIndex)
+          if (frameIndex !== currentFrameRef.current) {
             if (imagesRef.current.has(frameIndex)) {
               renderFrame(frameIndex)
             }
@@ -116,7 +137,7 @@ export default function ShowcaseSection() {
         },
       })
 
-      gsap.to(canvas, {
+      gsap.to(canvasRef.current, {
         scale: 1.05,
         scrollTrigger: {
           trigger: sectionRef.current,
@@ -125,49 +146,13 @@ export default function ShowcaseSection() {
           scrub: 1,
         },
       })
-
-      const handleMouseMove = (e: MouseEvent) => {
-        const { clientX, clientY } = e
-        mouseRef.current.targetX = (clientX / window.innerWidth - 0.5) * 2
-        mouseRef.current.targetY = (clientY / window.innerHeight - 0.5) * 2
-      }
-
-      const animateMouse = () => {
-        mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * 0.08
-        mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * 0.08
-
-        gsap.to('.showcase-parallax-1', {
-          x: mouseRef.current.x * 30,
-          y: mouseRef.current.y * 30,
-          duration: 0.5,
-          ease: 'power2.out',
-        })
-
-        gsap.to('.showcase-parallax-2', {
-          x: mouseRef.current.x * -20,
-          y: mouseRef.current.y * -20,
-          duration: 0.5,
-          ease: 'power2.out',
-        })
-
-        rafRef.current = requestAnimationFrame(animateMouse)
-      }
-
-      const section = sectionRef.current
-      section?.addEventListener('mousemove', handleMouseMove)
-      rafRef.current = requestAnimationFrame(animateMouse)
-
-      return () => {
-        section?.removeEventListener('mousemove', handleMouseMove)
-        if (rafRef.current) cancelAnimationFrame(rafRef.current)
-      }
     }, sectionRef)
 
     return () => {
-      clearInterval(interval)
-      ctxGsap.revert()
+      scrollTrigger?.kill()
+      ctx.revert()
     }
-  }, [currentFrame])
+  }, [renderFrame])
 
   return (
     <section ref={sectionRef} className="showcase-section" id="showcase">
@@ -178,8 +163,8 @@ export default function ShowcaseSection() {
 
       <div className="showcase-overlay">
         <div className="overlay-content">
-          <span className="showcase-label showcase-parallax-1">The Reveal</span>
-          <h2 className="showcase-title showcase-parallax-2">Scroll to Explore</h2>
+          <span className="showcase-label">The Reveal</span>
+          <h2 className="showcase-title">Scroll to Explore</h2>
         </div>
       </div>
 
